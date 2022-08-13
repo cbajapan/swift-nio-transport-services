@@ -25,7 +25,7 @@ import Atomics
 
 /// Channel options for the connection channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-private struct ConnectionChannelOptions {
+internal struct ConnectionChannelOptions {
     /// Whether autoRead is enabled for this channel.
     internal var autoRead: Bool = true
 
@@ -38,7 +38,7 @@ private struct ConnectionChannelOptions {
 }
 
 
-private typealias PendingWrite = (data: ByteBuffer, promise: EventLoopPromise<Void>?)
+internal typealias PendingWrite = (data: ByteBuffer, promise: EventLoopPromise<Void>?)
 
 
 internal struct AddressCache {
@@ -55,7 +55,7 @@ internal struct AddressCache {
 
 /// A structure that manages backpressure signaling on this channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-private struct BackpressureManager {
+internal struct BackpressureManager {
     /// Whether the channel is writable, given the current watermark state.
     ///
     /// This is an atomic only because the channel writability flag needs to be safe to access from multiple
