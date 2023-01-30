@@ -4,7 +4,7 @@ Extensions for [SwiftNIO](https://github.com/apple/swift-nio) to support Apple p
 
 ## About NIO Transport Services
 
-NIO Transport Services is an extension to SwiftNIO that provides first-class support for Apple platforms by using [Network.framework](https://developer.apple.com/documentation/network) to provide network connectivity, and [Dispatch](https://developer.apple.com/documentation/dispatch) to provide concurrency. NIOTS provides an alternative [EventLoop](https://apple.github.io/swift-nio/docs/current/NIO/Protocols/EventLoop.html), [EventLoopGroup](https://apple.github.io/swift-nio/docs/current/NIO/Protocols/EventLoopGroup.html), and several alternative [Channels](https://apple.github.io/swift-nio/docs/current/NIO/Protocols/Channel.html) and Bootstraps.
+NIO Transport Services is an extension to SwiftNIO that provides first-class support for Apple platforms by using [Network.framework](https://developer.apple.com/documentation/network) to provide network connectivity, and [Dispatch](https://developer.apple.com/documentation/dispatch) to provide concurrency. NIOTS provides an alternative [EventLoop](https://swiftpackageindex.com/apple/swift-nio/main/documentation/niocore/eventloop), [EventLoopGroup](https://swiftpackageindex.com/apple/swift-nio/main/documentation/niocore/eventloopgroup), and several alternative [Channels](https://swiftpackageindex.com/apple/swift-nio/main/documentation/niocore/channel) and Bootstraps.
 
 In addition to providing first-class support for Apple platforms, NIO Transport Services takes advantage of the richer API of Network.framework to provide more insight into the behaviour of the network than is normally available to NIO applications. This includes the ability to wait for connectivity until a network route is available, as well as all of the extra proxy and VPN support that is built directly into Network.framework.
 
@@ -48,13 +48,20 @@ declaring [SwiftNIO's Public API](https://github.com/apple/swift-nio/blob/main/d
 
 ### `swift-nio-transport-services ` 1.x
 
-`swift-nio-transport-services` versions 1.x is part of the SwiftNIO 2 family of repositories and does not have any dependencies besides [`swift-nio`](https://github.com/apple/swift-nio), Swift 5.4, and an Apple OS supporting `Network.framework`. As the latest version, it lives on the [`main`](https://github.com/apple/swift-nio-transport-services) branch.
+`swift-nio-transport-services` versions 1.x is part of the SwiftNIO 2 family of repositories and does not have any dependencies besides [`swift-nio`](https://github.com/apple/swift-nio), Swift 5.5.2, and an Apple OS supporting `Network.framework`. As the latest version, it lives on the [`main`](https://github.com/apple/swift-nio-transport-services) branch.
 
 To depend on `swift-nio-transport-services `, put the following in the `dependencies` of your `Package.swift`:
 
     .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.0.0"),
 
-`swift-nio-transport-services` version 1.11.x and earlier support Swift 5.2 and 5.3. Earlier 1.x versions also support Swift 5.0 and 5.1.
+The most recent versions of SwiftNIO Transport Services support Swift 5.5.2 and newer. The minimum Swift version supported by SwiftNIO Transport Services releases are detailed below:
+
+SwiftNIO Extras     | Minimum Swift Version
+--------------------|----------------------
+`1.0.0 ..< 1.11.0`  | 5.0
+`1.11.0 ..< 1.12.0` | 5.2
+`1.12.0 ..< 1.15.0` | 5.4
+`1.15.0 ...`        | 5.5.2
 
 ### `swift-nio-transport-services ` 0.x
 

@@ -25,7 +25,7 @@ import Foundation
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 final class NIOTSBootstrapTests: XCTestCase {
     var groupBag: [NIOTSEventLoopGroup]? = nil // protected by `self.lock`
-    let lock = Lock()
+    let lock = NIOLock()
 
     override func setUp() {
         self.lock.withLock {
@@ -173,6 +173,7 @@ final class NIOTSBootstrapTests: XCTestCase {
             XCTFail("can't connect to server1")
             return
         }
+        XCTAssertNotNil(try client1.getMetadata(definition: NWProtocolTCP.definition).wait() as? NWProtocolTCP.Metadata)
         XCTAssertNoThrow(try client1.writeAndFlush(buffer).wait())
 
         // The TLS connection won't actually succeed but it takes Network.framework a while to tell us, we don't

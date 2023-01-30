@@ -200,11 +200,14 @@ internal final class NIOTSConnectionChannel {
     /// Whether to use peer-to-peer connectivity when connecting to Bonjour services.
     private var enablePeerToPeer = false
 
+    /// The default multipath service type.
+    private var multipathServiceType = NWParameters.MultipathServiceType.disabled
+
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     private var _addressCache = AddressCache(local: nil, remote: nil)
 
     /// A lock that guards the _addressCache.
-    private let _addressCacheLock = Lock()
+    private let _addressCacheLock = NIOLock()
 
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
@@ -228,7 +231,7 @@ internal final class NIOTSConnectionChannel {
     /// Create a `NIOTSConnectionChannel` with an already-established `NWConnection`.
     internal convenience init(wrapping connection: NWConnection,
                               on eventLoop: NIOTSEventLoop,
-                              parent: Channel,
+                              parent: Channel? = nil,
                               qos: DispatchQoS? = nil,
                               tcpOptions: NWProtocolTCP.Options,
                               tlsOptions: NWProtocolTLS.Options?) {
@@ -322,6 +325,8 @@ extension NIOTSConnectionChannel: Channel {
             self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -378,6 +383,8 @@ extension NIOTSConnectionChannel: Channel {
                 throw NIOTSErrors.NoCurrentConnection()
             }
             return nwConnection.metadata(definition: optionValue.definition) as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            return self.multipathServiceType as! Option.Value
         default:
             // watchOS 6.0 availability is covered by the @available on this extension.
             if #available(OSX 10.15, iOS 13.0, tvOS 13.0, *) {
@@ -463,7 +470,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
             promise?.fail(NIOTSErrors.NotPreConfigured())
             return
         }
-
+        self.connectPromise = promise
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
         connection.betterPathUpdateHandler = self.betterPathHandler
         connection.pathUpdateHandler = self.pathChangedHandler(newPath:)
@@ -492,6 +499,8 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
 
         parameters.includePeerToPeer = self.enablePeerToPeer
+
+        parameters.multipathServiceType = self.multipathServiceType
 
         let connection = NWConnection(to: target, using: parameters)
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
@@ -893,4 +902,61 @@ extension NIOTSConnectionChannel {
         return SynchronousOptions(channel: self)
     }
 }
+
+
+public struct NIOTSConnectionNotInitialized: Error, Hashable {
+    public init() {}
+}
+
+public struct NIOTSChannelIsNotANIOTSConnectionChannel: Error, Hashable {
+    public init() {}
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSConnectionChannel {
+    fileprivate func metadata(definition: NWProtocolDefinition) throws -> NWProtocolMetadata? {
+        guard let nwConnection = self.nwConnection else {
+            throw NIOTSConnectionNotInitialized()
+        }
+        return nwConnection.metadata(definition: definition)
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension Channel {
+    /// Retrieves the metadata for a specific protocol from the underlying ``NWConnection``
+    /// - Throws: If `self` isn't a `NIOTS` channel with a `NWConnection` this method will throw
+    /// ``NIOTSChannelIsNotATransportServicesChannel`` or ``NIOTSConnectionNotInitialized``.
+    public func getMetadata(definition: NWProtocolDefinition) -> EventLoopFuture<NWProtocolMetadata?> {
+        guard let channel = self as? NIOTSConnectionChannel else {
+            return self.eventLoop.makeFailedFuture(NIOTSChannelIsNotANIOTSConnectionChannel())
+        }
+        if self.eventLoop.inEventLoop {
+            return self.eventLoop.makeCompletedFuture {
+                try channel.metadata(definition: definition)
+            }
+        } else {
+            return self.eventLoop.submit {
+                try channel.metadata(definition: definition)
+            }
+        }
+    }
+    
+    /// Retrieves the metadata for a specific protocol from the underlying ``NWConnection``
+    /// - Precondition: Must be called on the `EventLoop` the `Channel` is running on.
+    /// - Throws: If `self` isn't a `NIOTS` channel with a `NWConnection` this method will throw
+    /// ``NIOTSChannelIsNotATransportServicesChannel`` or ``NIOTSConnectionNotInitialized``.
+    public func getMetadataSync(
+        definition: NWProtocolDefinition,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) throws -> NWProtocolMetadata? {
+        self.eventLoop.preconditionInEventLoop(file: file, line: line)
+        guard let channel = self as? NIOTSConnectionChannel else {
+            throw NIOTSChannelIsNotANIOTSConnectionChannel()
+        }
+        return try channel.metadata(definition: definition)
+    }
+}
+
 #endif
