@@ -264,13 +264,14 @@ public final class NIOTSConnectionBootstrap {
 #if swift(>=5.6)
 //@available(*, unavailable)
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionBootstrap: Sendable {}
+extension NIOTSConnectionBootstrap: @unchecked Sendable {}
 #endif
 
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
-    @available(macOS 10.15, *)
+    
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public func connect<ChildChannelInboundIn, ChildChannelOutboundOut>(host: String, port: Int, clientBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?, childBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
         
         let validPortRange = Int(UInt16.min)...Int(UInt16.max)
@@ -285,7 +286,7 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     }
     
     /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
-    @available(macOS 10.15, *)
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(endpoint: NWEndpoint) async -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
         
         return await self.connectAsync({ asyncChannel, promise in
@@ -293,7 +294,7 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
         }, clientBackpressureStrategy: nil)
     }
     
-    @available(macOS 10.15, *)
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     private func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(_
                                                                          connectAction: @Sendable @escaping (NIOAsyncChannel<NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never>, EventLoopPromise<Void>) -> Void,
                                                                          clientBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?
