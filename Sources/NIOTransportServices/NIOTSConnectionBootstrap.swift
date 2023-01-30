@@ -262,13 +262,80 @@ public final class NIOTSConnectionBootstrap {
 }
 
 #if swift(>=5.6)
-@available(*, unavailable)
+//@available(*, unavailable)
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionBootstrap: Sendable {}
 #endif
 
+
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
+    @available(macOS 10.15, *)
+    public func connect<ChildChannelInboundIn, ChildChannelOutboundOut>(host: String, port: Int, clientBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?, childBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+        
+        let validPortRange = Int(UInt16.min)...Int(UInt16.max)
+        guard validPortRange.contains(port) else {
+            throw NIOTSErrors.InvalidPort(port: port)
+        }
+
+        guard let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
+            throw NIOTSErrors.InvalidPort(port: port)
+        }
+        return await self.connectAsync(endpoint: NWEndpoint.hostPort(host: .init(host), port: actualPort))
+    }
+    
+    /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
+    @available(macOS 10.15, *)
+    public func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(endpoint: NWEndpoint) async -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+        
+        return await self.connectAsync({ asyncChannel, promise in
+            asyncChannel.channel.triggerUserOutboundEvent(NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint), promise: promise)
+        }, clientBackpressureStrategy: nil)
+    }
+    
+    @available(macOS 10.15, *)
+    private func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(_
+                                                                         connectAction: @Sendable @escaping (NIOAsyncChannel<NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never>, EventLoopPromise<Void>) -> Void,
+                                                                         clientBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?
+    ) async -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+        let conn: Channel = NIOTSConnectionChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
+                                                   qos: self.qos,
+                                                   tcpOptions: self.tcpOptions,
+                                                   tlsOptions: self.tlsOptions)
+        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
+        let channelOptions = self.channelOptions
+
+        let asyncChannel = try! NIOAsyncChannel<NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never>(
+            synchronouslyWrapping: conn,
+            backpressureStrategy: clientBackpressureStrategy
+        )
+        
+        _ = asyncChannel.channel.eventLoop.flatSubmit {
+          channelOptions.applyAllChannelOptions(to: asyncChannel.channel).flatMap {
+                initializer(conn)
+            }.flatMap {
+                asyncChannel.channel.eventLoop.assertInEventLoop()
+                return asyncChannel.channel.register()
+            }.flatMap {
+                let connectPromise: EventLoopPromise<Void> = asyncChannel.channel.eventLoop.makePromise()
+                connectAction(asyncChannel, connectPromise)
+                let cancelTask = asyncChannel.channel.eventLoop.scheduleTask(in: self.connectTimeout) {
+                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                    asyncChannel.channel.close(promise: nil)
+                }
+
+                connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
+                    cancelTask.cancel()
+                }
+                return connectPromise.futureResult
+            }.map { asyncChannel }.flatMapErrorThrowing {
+                asyncChannel.channel.close(promise: nil)
+                throw $0
+            }
+        }
+        return asyncChannel
+    }
+    
     /// Apply any understood shorthand options to the bootstrap, removing them from the set of options if they are consumed.
     /// - parameters:
     ///     - options:  The options to try applying - the options applied should be consumed from here.
