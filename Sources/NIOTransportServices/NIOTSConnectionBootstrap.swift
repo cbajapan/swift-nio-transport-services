@@ -272,7 +272,7 @@ extension NIOTSConnectionBootstrap: @unchecked Sendable {}
 extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    public func connect<ChildChannelInboundIn, ChildChannelOutboundOut>(host: String, port: Int, clientBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?, childBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+    public func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(host: String, port: Int, clientBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?, childBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
         
         let validPortRange = Int(UInt16.min)...Int(UInt16.max)
         guard validPortRange.contains(port) else {
