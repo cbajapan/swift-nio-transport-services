@@ -22,7 +22,7 @@ import Network
 public final class NIOTSDatagramBootstrap: NIOClientTCPBootstrapProtocol {
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    public func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(host: String, port: Int, clientBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?, childBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+    public func connectAsync<ChannelInboundIn, ChannelOutboundOut>(host: String, port: Int, backpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut> where ChannelInboundIn : Sendable, ChannelOutboundOut : Sendable {
         fatalError("Cannot conform")
     }
     

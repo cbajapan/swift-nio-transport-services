@@ -272,7 +272,7 @@ extension NIOTSConnectionBootstrap: @unchecked Sendable {}
 extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    public func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(host: String, port: Int, clientBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?, childBackpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+    public func connectAsync<ChannelInboundIn, ChannelOutboundOut>(host: String, port: Int, backpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut> where ChannelInboundIn : Sendable, ChannelOutboundOut : Sendable {
         
         let validPortRange = Int(UInt16.min)...Int(UInt16.max)
         guard validPortRange.contains(port) else {
@@ -282,23 +282,27 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
         guard let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
             throw NIOTSErrors.InvalidPort(port: port)
         }
-        return await self.connectAsync(endpoint: NWEndpoint.hostPort(host: .init(host), port: actualPort))
+        return try await self.connectAsync(endpoint: NWEndpoint.hostPort(host: .init(host), port: actualPort))
     }
     
     /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    public func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(endpoint: NWEndpoint) async -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+    public func connectAsync<ChannelInboundIn, ChannelOutboundOut>(endpoint: NWEndpoint) async throws -> NIOCore.NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut> where ChannelInboundIn : Sendable, ChannelOutboundOut : Sendable {
         
-        return await self.connectAsync({ asyncChannel, promise in
+        return try await self.connectAsync({ asyncChannel, promise in
             asyncChannel.channel.triggerUserOutboundEvent(NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint), promise: promise)
-        }, clientBackpressureStrategy: nil)
+        }, backpressureStrategy: nil)
+    }
+    
+    enum NIOTSAsyncError: Error {
+        case asyncChannelFailed
     }
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    private func connectAsync<ChildChannelInboundIn, ChildChannelOutboundOut>(_
-                                                                         connectAction: @Sendable @escaping (NIOAsyncChannel<NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never>, EventLoopPromise<Void>) -> Void,
-                                                                         clientBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?
-    ) async -> NIOCore.NIOAsyncChannel<NIOCore.NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never> where ChildChannelInboundIn : Sendable, ChildChannelOutboundOut : Sendable {
+    private func connectAsync<ChannelInboundIn, ChannelOutboundOut>(_
+                                                                         connectAction: @Sendable @escaping (NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut>, EventLoopPromise<Void>) -> Void,
+                                                                         backpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?
+    ) async throws -> NIOCore.NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut> where ChannelInboundIn : Sendable, ChannelOutboundOut : Sendable {
         let conn: Channel = NIOTSConnectionChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
                                                    qos: self.qos,
                                                    tcpOptions: self.tcpOptions,
@@ -306,14 +310,23 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
         let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
         let channelOptions = self.channelOptions
 
-        let asyncChannel = try! NIOAsyncChannel<NIOAsyncChannel<ChildChannelInboundIn, ChildChannelOutboundOut>, Never>(
-            synchronouslyWrapping: conn,
-            backpressureStrategy: clientBackpressureStrategy
-        )
-        
+        let promise = conn.eventLoop.makePromise(of: NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut>.self)
+        conn.eventLoop.execute {
+            do {
+                let ac = try NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut>(
+                    synchronouslyWrapping: conn,
+                    backpressureStrategy: backpressureStrategy
+                )
+                promise.succeed(ac)
+            } catch {
+                promise.fail(NIOTSAsyncError.asyncChannelFailed)
+            }
+        }
+    
+        let asyncChannel = try await promise.futureResult.get()
         _ = asyncChannel.channel.eventLoop.flatSubmit {
           channelOptions.applyAllChannelOptions(to: asyncChannel.channel).flatMap {
-                initializer(conn)
+              initializer(asyncChannel.channel)
             }.flatMap {
                 asyncChannel.channel.eventLoop.assertInEventLoop()
                 return asyncChannel.channel.register()
