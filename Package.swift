@@ -22,6 +22,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/Cartisim/swift-nio.git", branch: "main"),
+//        .package(path: "../ForkedSwiftNIO/Apple/latest/swift-nio"),
         .package(url: "https://github.com/apple/swift-atomics.git", from: "1.0.2"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
     ],

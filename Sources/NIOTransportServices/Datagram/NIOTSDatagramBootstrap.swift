@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-import NIO
+@_spi(AsyncChannel) import NIOCore
 import Dispatch
 import Network
 
@@ -22,6 +22,7 @@ import Network
 public final class NIOTSDatagramBootstrap: NIOClientTCPBootstrapProtocol {
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
     public func connectAsync<ChannelInboundIn, ChannelOutboundOut>(host: String, port: Int, backpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut> where ChannelInboundIn : Sendable, ChannelOutboundOut : Sendable {
         fatalError("Cannot conform")
     }
