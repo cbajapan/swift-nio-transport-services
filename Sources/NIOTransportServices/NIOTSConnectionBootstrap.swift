@@ -272,7 +272,7 @@ extension NIOTSConnectionBootstrap: @unchecked Sendable {}
 extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(NIOAsyncChannel)
+    @_spi(AsyncChannel)
     public func connectAsync<ChannelInboundIn, ChannelOutboundOut>(host: String, port: Int, backpressureStrategy: NIOCore.NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?) async throws -> NIOCore.NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut> where ChannelInboundIn : Sendable, ChannelOutboundOut : Sendable {
         
         let validPortRange = Int(UInt16.min)...Int(UInt16.max)
@@ -288,7 +288,7 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     
     /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(NIOAsyncChannel)
+    @_spi(AsyncChannel)
     public func connectAsync<ChannelInboundIn, ChannelOutboundOut>(endpoint: NWEndpoint) async throws -> NIOCore.NIOAsyncChannel<ChannelInboundIn, ChannelOutboundOut> where ChannelInboundIn : Sendable, ChannelOutboundOut : Sendable {
         
         return try await self.connectAsync({ asyncChannel, promise in
