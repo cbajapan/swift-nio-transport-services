@@ -16,12 +16,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "swift-nio-transport-services",
+    name: "cba-swift-nio-transport-services",
     products: [
         .library(name: "NIOTransportServices", targets: ["NIOTransportServices"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", branch: "main"),
+        .package(url: "https://github.com/cbajapan/swift-nio.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-atomics.git", from: "1.0.2"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
     ],
